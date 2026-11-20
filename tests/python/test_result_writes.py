@@ -224,7 +224,7 @@ def test_a_diffusion_gemma_result_takes_the_build_from_the_dumps_and_is_written_
                  median_rel_rms=0.01, argmax_agree=64, mean_top5_overlap=4.9, worst_rows=[1, 2, 3],
                  top1_max_rel_err=0.01)
     monkeypatch.setattr(parity, "dg_case_files", lambda workdir: [case])
-    monkeypatch.setattr(parity, "llada_bound", lambda root: dict(
+    monkeypatch.setattr(parity, "dg_sensitivity_bound", lambda root: dict(
         min_cosine=0.99, argmax_fraction=0.9, mean_top5_overlap=4.5, max_rel_rms=0.1, max_top1_rel_err=0.1, source="x"))
     monkeypatch.setattr(parity, "dg_compare", lambda workdir, bound: ([entry], []))
     written: list[Path] = []

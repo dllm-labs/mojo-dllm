@@ -21,11 +21,12 @@ is mapped by whichever process runs, and mojo-dllm keeps its own repacked copy b
   --phase ref      the llama.cpp #24423 branch (scripts/build_dg_ref.sh) writes the canvas logits of a
                    fixed prompt and canvas, four ways, into build/dg-parity/<model>/caseN/.
   --phase compare  reads those files and mojo-dllm's, written by mojo-dllm itself as <variant>.mojo.f32
-                   with a <variant>.mojo.f32.json sidecar (case_sha256, mojo_dllm_commit) beside them,
-                   requires every case of the current prompt set, and writes bench/parity/ evidence only when every variant is inside the
-                   bound taken from the LLaDA evidence. A missing mojo-dllm file stops the run (write it with
-                   `mojo-dllm logits`, one file per variant and case), and the reference's own output is
-                   never used in its place.
+                   beside them, requires every case of the measured prompt set, and writes bench/parity/
+                   evidence only when every variant is inside the
+                   fixed-input bound measured from DiffusionGemma's own reference controls. A missing output
+                   or execution receipt stops the run: there is
+                   nothing to compare until the forward pass (#64) exists, and the reference's own output
+                   is never used in its place.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import math
 import os
 import pathlib
 import platform
@@ -136,6 +138,13 @@ DG_CANVAS_SEED = spec.DG_CANVAS_SEED
 # The four forward passes of one canvas. The cached ones run the prompt through a prefill first and then
 # the canvas against the stored K/V; the -sc ones add self-conditioning from the previous step's logits.
 DG_VARIANTS = ("unified", "cached", "unified-sc", "cached-sc")
+DG_PROMPTS = (
+    "Explain speculative decoding in two sentences.",
+    "List three differences between diffusion language models and autoregressive language models.",
+    "Write a short Python function that checks whether a number is prime.",
+    "Translate into English: 春天来了，河边的树开花了。Then explain the image in one sentence.",
+)
+DG_SENSITIVITY_EVIDENCE = "bench/checks/2026-11-05-dg-sensitivity.json"
 # The -sc variants condition on the reference's own unified logits (the "previous step"), which both
 # runtimes read, so neither side's own earlier step enters the comparison.
 DG_PREV_FILE = "unified.ref.f32"
@@ -143,12 +152,8 @@ DG_PREV_FILE = "unified.ref.f32"
 # divides the previous logits by it.
 DG_PREV_TEMP_INV = 1.0 / spec.DG_FIRST_STEP_TEMP
 LLADA_EVIDENCE = "bench/parity/2026-10-03-llada.json"
-# The DiffusionGemma reference's own sensitivity (not LLaDA's): with the previous-step logits changed by this
-# relative L2 amount (about ten times the spacing of float32 values) the reference's output moved by a median
-# relative RMS of 0.18 to 0.26 on the two prompts of LOGIT_CASES with a random canvas. That was a one-off
-# measurement recorded per case as ref_spread under build/dg-parity/, which is not committed, so no file in
-# this repository holds it. The cause is untested; expert routing flips spread by bidirectional attention are a
-# hypothesis. The noisy run is made for every case so that a comparison is never read without its spread.
+# A changed-input sensitivity diagnostic. Its spread is recorded beside parity;
+# only same-input cache-path controls determine the implementation tolerance.
 DG_NOISE_REL = 1e-6
 DG_NOISE_SEED = spec.DG_NOISE_SEED
 DG_NOISY_FILE = "unified-sc-noisy.ref.f32"
@@ -239,12 +244,147 @@ def dg_violations(m: DgMetrics, bound: Bound) -> list[str]:
     return out
 
 
+def dg_reference_bound(records: list[dict]) -> dict:
+    """Per-prompt, per-state extrema from the two directions of the cache control.
+
+    Fault injections and changed-input experiments never determine the bound.
+    Repeating the same path supplies an independent positive control.
+    """
+    controls = [r for r in records if r["same_inputs"] and not r["expected_rejected"]
+                and r["kind"] in ("cache-path", "cache-path-reverse")]
+    if not controls:
+        raise SystemExit("refusing: no same-input cache-path reference controls")
+    out = {}
+    for prompt in dict.fromkeys(r["prompt"] for r in controls):
+        out[prompt] = {}
+        for state in ("no-sc", "sc"):
+            rows = [r for r in controls if r["prompt"] == prompt and r["state"] == state]
+            for direction in ("cache-path", "cache-path-reverse"):
+                if not any(r["kind"] == direction for r in rows):
+                    raise SystemExit(f"refusing: {prompt!r} {state} lacks the {direction} control")
+            out[prompt][state] = dict(
+                min_cosine=min(r["min_cosine"] for r in rows),
+                argmax_fraction=min(r["argmax_agree"] / r["rows"] for r in rows),
+                mean_top5_overlap=min(r["mean_top5_overlap"] for r in rows),
+                max_rel_rms=max(r["max_rel_rms"] for r in rows),
+                max_top1_rel_err=max(r["top1_max_rel_err"] for r in rows))
+    return out
+
+
+def dg_softcap_violations(max_abs_logit: float, cap: float) -> list[str]:
+    """A direct model invariant, independent of any cross-runtime distance."""
+    if not math.isfinite(max_abs_logit) or not math.isfinite(cap) or cap <= 0:
+        return ["soft-cap check needs finite logits and a positive finite cap"]
+    if max_abs_logit > cap:
+        return [f"absolute logit {max_abs_logit:.6g} exceeds model soft-cap {cap:.6g}"]
+    return []
+
+
+def dg_sensitivity_bound(root: pathlib.Path) -> dict:
+    """Load the fixed-input regression protocol; derive its numbers from controls."""
+    path = root / DG_SENSITIVITY_EVIDENCE
+    if not path.is_file():
+        raise SystemExit(f"refusing: {DG_SENSITIVITY_EVIDENCE} is missing")
+    evidence = json.loads(path.read_text(encoding="utf-8"))
+    if evidence["llama_cpp_commit"] != dg_pinned_commit(root):
+        raise SystemExit(f"refusing: {path} was collected with a different reference commit")
+    profiles = dg_reference_bound(evidence["records"])
+    inputs = list(evidence["inputs"].values())
+    if len(inputs) != len(DG_PROMPTS) or {c["prompt"] for c in inputs} != set(DG_PROMPTS):
+        raise SystemExit(f"refusing: {path} does not cover the complete fixed DiffusionGemma prompt suite")
+    check = {prompt: False for prompt in ("soft-cap removed", "output scale dropped")}
+    for record in evidence["records"]:
+        found = dg_violations(record, profiles[record["prompt"]][record["state"]])
+        found += dg_softcap_violations(record["max_abs_logit"], record["softcap"])
+        if record["same_inputs"] and not record["expected_rejected"] and found:
+            raise SystemExit(f"refusing: {path} rejects its {record['kind']} reference control")
+        if record["expected_rejected"]:
+            for label in check:
+                if label in record["kind"] and found:
+                    check[label] = True
+    if not all(check.values()):
+        raise SystemExit(f"refusing: {path} does not reject both required mutants")
+    return dict(protocol="dg-fixed-input-v1", source=DG_SENSITIVITY_EVIDENCE, model=evidence["model"],
+                model_identity=evidence["model_identity"],
+                llama_cpp_commit=evidence["llama_cpp_commit"],
+                cases={c["prompt"]: dict(inputs=c, states=profiles[c["prompt"]]) for c in inputs})
+
+
+def dg_case_bound(meta: dict, variant: str, bound: dict) -> dict:
+    if bound.get("protocol") != "dg-fixed-input-v1":
+        return bound  # callers of the historical gross-bug detector
+    prompt = meta["prompt"]
+    if prompt not in bound["cases"]:
+        raise SystemExit(f"refusing: no measured DiffusionGemma bound for prompt {prompt!r}")
+    expected = bound["cases"][prompt]["inputs"]
+    for key in ("prompt_tokens", "canvas_tokens", "canvas_length", "n_vocab", "prev_temp_inv"):
+        if meta.get(key) != expected[key]:
+            raise SystemExit(f"refusing: {prompt!r} {key} differs from the measured DiffusionGemma inputs")
+    for key in ("model", "llama_cpp_commit"):
+        if meta.get(key) != bound[key]:
+            raise SystemExit(f"refusing: {prompt!r} {key} differs from the measured DiffusionGemma reference")
+    if "model_identity" in bound and dg_model_identity(meta) != bound["model_identity"]:
+        raise SystemExit(f"refusing: {prompt!r} model_identity differs from the measured DiffusionGemma artifact")
+    if float(meta["final_logit_softcapping"]) != float(expected["final_logit_softcapping"]):
+        raise SystemExit(f"refusing: {prompt!r} final_logit_softcapping differs from the measured model")
+    return bound["cases"][prompt]["states"]["sc" if variant.endswith("-sc") else "no-sc"]
+
+
 def _sha256(path: pathlib.Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as f:
         for block in iter(lambda: f.read(1 << 24), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def dg_model_identity(meta: dict) -> dict:
+    """Reuse supplied model provenance; never hash the 16.8 GB model for a receipt."""
+    identity = dict(name=meta["model"], bytes=meta["model_bytes"])
+    if meta.get("model_provenance"):
+        source = meta["model_provenance"]
+        if source.get("verified_bytes") != meta["model_bytes"] or source.get("filename") != meta["model"]:
+            raise SystemExit("refusing: model provenance filename or verified byte count differs from the model")
+        identity["provenance"] = {k: source[k] for k in ("repository", "revision", "filename", "declared_hf_lfs_oid")}
+    elif meta.get("model_sha256"):
+        identity["sha256"] = meta["model_sha256"]
+    else:
+        identity["reference_file"] = dict(path=meta["model_path"], mtime_ns=meta["model_mtime_ns"])
+    return identity
+
+
+def dg_receipt_inputs(case_dir: pathlib.Path, meta: dict, variant: str) -> dict:
+    previous = None
+    if variant.endswith("-sc"):
+        path = case_dir / DG_PREV_FILE
+        if not path.is_file():
+            raise SystemExit(f"refusing: shared previous-logit file {path} is missing")
+        previous = dict(file=DG_PREV_FILE, bytes=path.stat().st_size, sha256=_sha256(path),
+                        temperature_inverse=meta["prev_temp_inv"])
+    return dict(variant=variant, model=dg_model_identity(meta), llama_cpp_commit=meta["llama_cpp_commit"],
+                prompt_tokens=meta["prompt_tokens"], canvas_tokens=meta["canvas_tokens"],
+                n_vocab=meta["n_vocab"], canvas_length=meta["canvas_length"],
+                final_logit_softcapping=float(meta["final_logit_softcapping"]), previous=previous)
+
+
+def dg_validate_receipt(case_dir: pathlib.Path, meta: dict, variant: str) -> dict:
+    path = case_dir / f"{variant}.mojo.receipt.json"
+    if not path.is_file():
+        raise SystemExit(f"refusing: candidate execution receipt {path} is missing; use bench/dg_candidate.py")
+    receipt = json.loads(path.read_text(encoding="utf-8"))
+    execution = receipt.get("execution", {})
+    if (receipt.get("producer") != "bench/dg_candidate.py/v1" or execution.get("exit_status") != 0
+            or not execution.get("argv") or not execution.get("executable")
+            or not execution.get("candidate_revision")):
+        raise SystemExit(f"refusing: {path} has no completed candidate execution")
+    if receipt.get("inputs") != dg_receipt_inputs(case_dir, meta, variant):
+        raise SystemExit(f"refusing: {path} inputs differ from the required model, variant, canvas or shared previous logits")
+    output = case_dir / f"{variant}.mojo.f32"
+    expected_bytes = meta["canvas_length"] * meta["n_vocab"] * 4
+    identity = dict(file=output.name, bytes=output.stat().st_size, sha256=_sha256(output))
+    if identity["bytes"] != expected_bytes or receipt.get("output") != identity:
+        raise SystemExit(f"refusing: {path} output differs from the candidate produced by its execution")
+    return receipt
 
 
 def _load_f32(path: pathlib.Path, vocab: int):
@@ -306,25 +446,27 @@ def dg_check_sidecar(case_name: str, mojo: pathlib.Path, meta: dict) -> str:
     return commit
 
 
-def dg_case_files(workdir: pathlib.Path) -> list[pathlib.Path]:
-    """The `case.json` of case0 to case{N-1}, N = len(LOGIT_CASES), each made for the prompt this file asks for.
+def dg_case_files(workdir: pathlib.Path, prompts: tuple[str, ...] | None = None) -> list[pathlib.Path]:
+    """The `case.json` of case0 to case{N-1}, each made for its expected prompt.
 
     A `--phase ref` run that stopped early, or a folder from an older prompt set, is refused by name.
     """
     found = {p.parent.name: p for p in workdir.glob("case*/case.json")}
     if not found:
         raise SystemExit(f"refusing: no reference cases under {workdir}; run --phase ref first")
-    want = [f"case{i}" for i in range(len(LOGIT_CASES))]
+    if prompts is None:
+        prompts = tuple(case.prompt for case in LOGIT_CASES)
+    want = [f"case{i}" for i in range(len(prompts))]
     if sorted(found) != sorted(want):
         raise SystemExit(
             f"refusing: {workdir} holds {sorted(found)} but the case set is {want}; "
             "run --phase ref again on an empty folder"
         )
-    for name, case in zip(want, LOGIT_CASES):
+    for name, expected in zip(want, prompts):
         prompt = json.loads(found[name].read_text()).get("prompt")
-        if prompt != case.prompt:
+        if prompt != expected:
             raise SystemExit(
-                f"refusing: {name} was made for the prompt {prompt!r}, not {case.prompt!r}; run --phase ref again"
+                f"refusing: {name} was made for the prompt {prompt!r}, not {expected!r}; run --phase ref again"
             )
     return [found[n] for n in want]
 
@@ -340,12 +482,17 @@ def dg_compare(
     Every file is checked before the first number is computed, so a half-finished set never produces a
     partial table. `load` and `compare_fn` default to numpy; tests pass plain stand-ins.
     """
-    cases = dg_case_files(workdir)
+    fixed_input = bound.get("protocol") == "dg-fixed-input-v1"
+    cases = dg_case_files(workdir, tuple(bound["cases"])) if fixed_input else dg_case_files(workdir)
     commits: set[str] = set()
     plan = []
+    seen_prompts = set()
     for case_json in cases:
         d = case_json.parent
+        meta = json.loads(case_json.read_text(encoding="utf-8"))
+        seen_prompts.add(meta["prompt"])
         for v in DG_VARIANTS:
+            receipt = None
             ref, mojo = d / f"{v}.ref.f32", d / f"{v}.mojo.f32"
             if not ref.is_file():
                 raise SystemExit(f"refusing: the reference output {ref} is missing; run --phase ref again")
@@ -354,16 +501,22 @@ def dg_compare(
                     f"refusing: mojo-dllm's output {mojo} is missing. Write it with `mojo-dllm logits` (see "
                     "docs/correctness.md); the reference's own output is never compared with itself."
                 )
-            meta = json.loads(case_json.read_text())
-            commits.add(dg_check_sidecar(d.name, mojo, meta))
-            if mojo.read_bytes() == ref.read_bytes():
+            case_bound = dg_case_bound(meta, v, bound)
+            if fixed_input:
+                receipt = dg_validate_receipt(d, meta, v)
+                commits.add(receipt["execution"]["candidate_revision"])
+            else:
+                commits.add(dg_check_sidecar(d.name, mojo, meta))
+            if (not fixed_input or case_bound["max_rel_rms"] > 0) and mojo.read_bytes() == ref.read_bytes():
                 raise SystemExit(
-                    f"refusing: {mojo} is byte-identical to {ref}. Two runtimes that quantize differently "
-                    "do not agree to the last bit, so this is a copy, not a result."
+                    f"refusing: {mojo} is byte-identical to {ref}; this comparison requires a distinct "
+                    "candidate output when the measured reference spread is nonzero."
                 )
             if "ref_spread" not in meta:
                 raise SystemExit(f"refusing: {case_json} has no ref_spread; run --phase ref again")
-            plan.append((meta, v, ref, mojo))
+            plan.append((meta, v, ref, mojo, receipt))
+    if fixed_input and seen_prompts != set(bound["cases"]):
+        raise SystemExit("refusing: the saved cases do not cover the complete measured DiffusionGemma suite")
     if len(commits) != 1:
         raise SystemExit(
             f"refusing: the mojo-dllm outputs come from {len(commits)} different builds {sorted(commits)}; "
@@ -373,7 +526,7 @@ def dg_compare(
     if compare_fn is None:
         compare_fn = dg_metrics
     entries, violations = [], []
-    for case, v, ref, mojo in plan:
+    for case, v, ref, mojo, receipt in plan:
         if load is None:
             vocab = case["n_vocab"]
             a, b = _load_f32(mojo, vocab), _load_f32(ref, vocab)
@@ -386,7 +539,14 @@ def dg_compare(
             dict(prompt=case["prompt"], variant=v, seq_len=len(case["prompt_tokens"]) + m["rows"],
                  reference_spread=case["ref_spread"], mojo_dllm_commit=commit, **m)
         )
-        violations += [f"{case['prompt'][:40]!r} {v}: {x}" for x in dg_violations(m, bound)]
+        if receipt is not None:
+            entries[-1]["candidate_receipt"] = receipt
+        found = dg_violations(m, dg_case_bound(case, v, bound))
+        if bound.get("protocol") == "dg-fixed-input-v1":
+            maximum = float(abs(a).max()) if load is None else m["max_abs_logit"]
+            found += dg_softcap_violations(maximum, float(case["final_logit_softcapping"]))
+            entries[-1]["max_abs_logit"] = maximum
+        violations += [f"{case['prompt'][:40]!r} {v}: {x}" for x in found]
     return entries, violations
 
 
@@ -439,19 +599,24 @@ def dg_reference(args: argparse.Namespace, workdir: pathlib.Path, llama_src: pat
     head = dg_require_commit(llama_src, pinned)
     info = dict(line.split("=", 1) for line in run([args.ref, "info", args.model]).splitlines() if "=" in line)
     vocab, canvas_len = int(info["n_vocab"]), int(info["canvas_length"])
-    sha = _sha256(pathlib.Path(args.model))
-    for i, case in enumerate(LOGIT_CASES):
+    provenance = json.loads(pathlib.Path(args.model_provenance).read_text(encoding="utf-8")) if args.model_provenance else None
+    sha = None if provenance else _sha256(pathlib.Path(args.model))
+    model_stat = pathlib.Path(args.model).stat()
+    for i, prompt_text in enumerate(DG_PROMPTS):
         d = workdir / f"case{i}"
         d.mkdir(parents=True, exist_ok=True)
-        for stale in [*d.glob("*.mojo.f32"), *d.glob("*.mojo.f32.json")]:
+        for stale in [*d.glob("*.mojo.f32"), *d.glob("*.mojo.f32.json"), *d.glob("*.mojo.receipt.json")]:
             stale.unlink()  # a dump from the previous reference no longer matches this one
-        prompt = dg_tokenize(llama_src, args.model, case.prompt)
+        prompt = dg_tokenize(llama_src, args.model, prompt_text)
         canvas = dg_canvas(vocab, canvas_len, DG_CANVAS_SEED + i)
         meta = dict(
-            prompt=case.prompt, prompt_tokens=prompt, canvas_tokens=canvas, canvas_seed=DG_CANVAS_SEED + i,
+            prompt=prompt_text, prompt_tokens=prompt, canvas_tokens=canvas, canvas_seed=DG_CANVAS_SEED + i,
             n_vocab=vocab, canvas_length=canvas_len, final_logit_softcapping=info["final_logit_softcapping"],
             prev_file=DG_PREV_FILE, prev_temp_inv=DG_PREV_TEMP_INV, model=pathlib.Path(args.model).name,
             model_sha256=sha, llama_cpp_commit=head,
+            model_bytes=model_stat.st_size, model_mtime_ns=model_stat.st_mtime_ns,
+            model_path=str(pathlib.Path(args.model).resolve()),
+            model_provenance=provenance,
         )
         (d / "case.json").write_text(json.dumps(meta, indent=2) + "\n")
         tcsv, ccsv = ",".join(map(str, prompt)), ",".join(map(str, canvas))
@@ -482,8 +647,7 @@ def dgemma_main(args: argparse.Namespace) -> int:
         return dg_reference(args, workdir, llama_src)
     out = result_path(args.model, DG_ARCH, "cpu", dt.date.today())
     atomic_write.refuse_existing(out, args.force)   # before the comparison, not after it
-    bound = llada_bound(ROOT)
-    require_keys(bound, BOUND_KEYS, "the LLaDA bound")
+    bound = dg_sensitivity_bound(ROOT)
     entries, violations = dg_compare(workdir, bound)
     for e in entries:
         print("logits", e)
@@ -491,10 +655,10 @@ def dgemma_main(args: argparse.Namespace) -> int:
         seen = {e["prompt"]: e["reference_spread"] for e in entries}
         context = [f"{prompt[:40]!r}: {line}" for prompt, sp in seen.items() for line in dg_spread_lines(sp)]
         raise SystemExit(
-            "outside the LLaDA bound:\n  " + "\n  ".join(violations)
+            "outside the measured DiffusionGemma fixed-input bound:\n  " + "\n  ".join(violations)
             + "\nthe reference against itself, for reading these numbers:\n  " + "\n  ".join(context)
         )
-    meta = json.loads(dg_case_files(workdir)[0].read_text())
+    meta = json.loads((workdir / "case0/case.json").read_text())
     doc = dict(
         date=dt.datetime.now().isoformat(timespec="seconds"), arch=DG_ARCH, device="cpu", model=meta["model"],
         versions={"mojo-dllm": entries[0]["mojo_dllm_commit"],
@@ -527,6 +691,7 @@ def write_doc(path: pathlib.Path, doc: dict, force: bool) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
+    ap.add_argument("--model-provenance", help="DiffusionGemma: existing HF revision/LFS identity and size provenance")
     ap.add_argument("--ref", default=None, help="the reference binary (build/llada_ref, or build/dg_ref for DiffusionGemma)")
     ap.add_argument("--threads", default="12")
     ap.add_argument("--arch", choices=[*sorted(SPECS), DG_ARCH], default="llada")

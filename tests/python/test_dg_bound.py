@@ -41,14 +41,37 @@ def capped_logits(seed: int, scale: float) -> "np.ndarray":
     return (CAP * np.tanh(z / CAP)).astype(np.float32)
 
 
-def make_cases(folder: Path, scale: float = 25.0, seed: int = 1) -> Path:
+def case_inputs(prompt: str) -> dict:
+    return dict(prompt=prompt, prompt_tokens=[2], canvas_tokens=list(range(ROWS)), canvas_length=ROWS,
+                n_vocab=VOCAB, prev_temp_inv=1.25, final_logit_softcapping=CAP,
+                model="m.gguf", model_sha256="0" * 64, llama_cpp_commit="c" * 40)
+
+
+@pytest.fixture(autouse=True)
+def fixed_input_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+    limits = dict(min_cosine=0.99, argmax_fraction=0.9, mean_top5_overlap=4.5,
+                  max_rel_rms=0.12, max_top1_rel_err=0.12)
+    bound = dict(protocol="dg-fixed-input-v1", model="m.gguf", llama_cpp_commit="c" * 40,
+                 cases={prompt: dict(inputs=case_inputs(prompt), states={"no-sc": dict(limits), "sc": dict(limits)})
+                        for prompt in parity.DG_PROMPTS})
+    monkeypatch.setattr(parity, "dg_sensitivity_bound", lambda root: bound)
+
+
+def make_cases(folder: Path, scale: float = 25.0, seed: int = 1, original: Path | None = None) -> Path:
     folder.mkdir()
-    for i, case in enumerate(parity.LOGIT_CASES):
+    for i, prompt in enumerate(parity.DG_PROMPTS):
         d = folder / f"case{i}"
         d.mkdir()
-        (d / "case.json").write_text(json.dumps(dict(prompt=case.prompt, n_vocab=VOCAB, final_logit_softcapping=CAP,
-                                                     model="m.gguf", model_sha256="0" * 64, llama_cpp_commit="c" * 40)))
-        capped_logits(seed + i, scale).tofile(d / "unified.ref.f32")
+        previous = (original / d.name if original else d) / "unified.ref.f32"
+        meta = dict(case_inputs(prompt), prev_file=str(previous), controls=[
+            dict(kind="cache-path", candidate="cached" + suffix, reference="unified" + suffix, same_inputs=True)
+            for suffix in ("", "-sc")])
+        (d / "case.json").write_text(json.dumps(meta))
+        for variant in parity.DG_VARIANTS:
+            capped_logits(seed + i, scale).tofile(d / f"{variant}.ref.f32")
+            if variant.endswith("-sc"):
+                command = ["dg_ref", "--prev", str(previous), "--prev-temp-inv", "1.25"]
+                (d / f"{variant}.ref.run.json").write_text(json.dumps(dict(command=command)))
     return folder
 
 
@@ -78,11 +101,9 @@ def test_the_bound_accepts_the_control_and_rejects_a_removed_soft_cap(tmp_path: 
     assert rc == 0, err
     doc = json.loads(out_file.read_text())
     assert doc["all_as_expected"] is True and doc["dropped_layer"] is None and doc["dropped_model"] is None
-    by = {(r["case"], r["mutant"]): r for r in doc["results"]}
-    assert len(by) == 4
-    for case in ("case0", "case1"):
-        assert by[(case, "control")]["rejected"] is False and by[(case, "control")]["violations"] == []
-        assert by[(case, "soft-cap removed")]["rejected"] is True and by[(case, "soft-cap removed")]["violations"]
+    assert len(doc["results"]) == 32
+    assert all(not row["rejected"] and row["violations"] == [] for row in doc["results"] if not row["is_mutant"])
+    assert doc["mutants_rejected"] == {"soft-cap removed": True}
     assert "rejected=False" in out and "rejected=True" in out
 
 
@@ -95,26 +116,29 @@ def test_a_bound_that_lets_the_soft_cap_bug_through_fails_the_check(tmp_path: Pa
 def test_a_bound_that_rejects_perfect_agreement_fails_the_check(tmp_path: Path, capsys: pytest.CaptureFixture[str],
                                                                monkeypatch: pytest.MonkeyPatch) -> None:
     cases = make_cases(tmp_path / "cases")
-    real = parity.llada_bound(ROOT)
-    monkeypatch.setattr(parity, "llada_bound", lambda root: {**real, "min_cosine": 2.0})
+    bound = parity.dg_sensitivity_bound(ROOT)
+    for profile in bound["cases"].values():
+        for state in profile["states"].values():
+            state["min_cosine"] = 2.0
     rc, out, err = run_check(["check", str(cases)], capsys)
-    assert rc == 1 and "control: rejected, expected accepted" in err
+    assert rc == 1 and "the unmodified reference was rejected" in err
 
 
 def test_dropped_scale_logits_that_differ_are_rejected_as_expected(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     cases = make_cases(tmp_path / "cases")
-    dropped = make_cases(tmp_path / "dropped", seed=99)       # other logits: far from the reference
+    dropped = make_cases(tmp_path / "dropped", seed=99, original=cases)
     out_file = tmp_path / "e.json"
     rc, out, err = run_check(["check", str(cases), "--dropped", str(dropped), "--dropped-layer", "3", "--out", str(out_file)], capsys)
     assert rc == 0, err
     doc = json.loads(out_file.read_text())
     assert doc["dropped_layer"] == 3 and doc["dropped_model"] == {"model": "m.gguf", "model_sha256": "0" * 64}
-    assert {r["mutant"] for r in doc["results"]} == {"control", "soft-cap removed", "layer 3 output scale dropped"}
+    assert {r["mutant"] for r in doc["results"]} == {
+        "cache-path", "cache-path-reverse", "soft-cap removed", "layer 3 output scale dropped"}
 
 
 def test_dropped_scale_logits_equal_to_the_reference_are_a_failure(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     cases = make_cases(tmp_path / "cases")
-    dropped = make_cases(tmp_path / "dropped")                # the same logits: the "bug" changed nothing
+    dropped = make_cases(tmp_path / "dropped", original=cases)
     rc, out, err = run_check(["check", str(cases), "--dropped", str(dropped), "--dropped-layer", "3"], capsys)
     assert rc == 1 and "layer 3 output scale dropped: accepted" in err
 

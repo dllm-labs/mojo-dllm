@@ -15,3 +15,6 @@ tests/python/test_gen_fixtures.py::* | is in the `fixtures` group
 tests/python/test_action_pins.py::* | is in the `lint` group
 tests/python/test_llada_ref.py::* | no C++ compiler
 tests/python/test_check_format.py::* | root reads every file
+tests/python/test_dg_candidate.py::* | is in the `fixtures` group
+tests/python/test_dg_sensitivity.py::* | is in the `fixtures` group
+tests/python/test_dg_numeric.py::* | is in the `fixtures` group
