@@ -1,0 +1,342 @@
+{
+  "date": "2026-11-16",
+  "pull_request": 174,
+  "previous_head": "b01fcc44972c097949bd8fa3fcc4d7b45640d4f5",
+  "upstream": "1ea66ad",
+  "controls": [
+    {
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_traces.py",
+        "tests/python/test_dg_diagnostics.py"
+      ],
+      "exit_status": 0,
+      "output": ".......................................                                  [100%]\n39 passed in 1.07s\n"
+    },
+    {
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_traces.py",
+        "tests/python/test_dg_diagnostics.py"
+      ],
+      "exit_status": 0,
+      "output": ".......................................                                  [100%]\n39 passed in 0.85s\n"
+    }
+  ],
+  "mutations": [
+    {
+      "name": "result_rows",
+      "source": "bench/compare_dg_traces.py",
+      "before": "if target == \"prefill\" and name.startswith((\"result_norm\", \"result_output\")):",
+      "after": "if False:",
+      "target": "tests/python/test_dg_traces.py::test_compare_uses_only_canvas_rows_for_result_tensors",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_traces.py::test_compare_uses_only_canvas_rows_for_result_tensors"
+      ],
+      "exit_status": 1,
+      "output": "FF                                                                       [100%]\n=================================== FAILURES ===================================\n______ test_compare_uses_only_canvas_rows_for_result_tensors[result_norm] ______\ntests/python/test_dg_traces.py:144: in test_compare_uses_only_canvas_rows_for_result_tensors\n    result, = traces.compare(unified, cached, prompt=1)\n    ^^^^^^^\nE   ValueError: too many values to unpack (expected 1)\n_____ test_compare_uses_only_canvas_rows_for_result_tensors[result_output] _____\ntests/python/test_dg_traces.py:144: in test_compare_uses_only_canvas_rows_for_result_tensors\n    result, = traces.compare(unified, cached, prompt=1)\n    ^^^^^^^\nE   ValueError: too many values to unpack (expected 1)\n2 failed in 0.29s\n"
+    },
+    {
+      "name": "unified_phase",
+      "source": "bench/compare_dg_traces.py",
+      "before": "if phase != \"unified\":",
+      "after": "if False:",
+      "target": "tests/python/test_dg_traces.py::test_compare_rejects_a_non_unified_source_phase",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_traces.py::test_compare_rejects_a_non_unified_source_phase"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_compare_rejects_a_non_unified_source_phase ________________\ntests/python/test_dg_traces.py:156: in test_compare_rejects_a_non_unified_source_phase\n    with pytest.raises(ValueError, match=\"expected unified phase, found decode\"):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   Failed: DID NOT RAISE ValueError\n1 failed in 0.55s\n"
+    },
+    {
+      "name": "matching_names",
+      "source": "bench/compare_dg_traces.py",
+      "before": "if not rows:",
+      "after": "if False:",
+      "target": "tests/python/test_dg_traces.py::test_compare_rejects_traces_without_matching_names",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_traces.py::test_compare_rejects_traces_without_matching_names"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______________ test_compare_rejects_traces_without_matching_names ______________\ntests/python/test_dg_traces.py:167: in test_compare_rejects_traces_without_matching_names\n    with pytest.raises(ValueError, match=\"no matching tensor names\"):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   Failed: DID NOT RAISE ValueError\n1 failed in 0.28s\n"
+    },
+    {
+      "name": "final_shape",
+      "source": "bench/compare_dg_traces.py",
+      "before": "if a.shape != b.shape:",
+      "after": "if False:",
+      "target": "tests/python/test_dg_traces.py::test_rejects_different_ranks_after_alignment",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_traces.py::test_rejects_different_ranks_after_alignment"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_________________ test_rejects_different_ranks_after_alignment _________________\ntests/python/test_dg_traces.py:182: in test_rejects_different_ranks_after_alignment\n    with pytest.raises(ValueError, match=\"aligned shapes differ\"):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   Failed: DID NOT RAISE ValueError\n1 failed in 0.26s\n"
+    },
+    {
+      "name": "multiple_dimensions",
+      "source": "bench/compare_dg_traces.py",
+      "before": "if len(changed) != 1:",
+      "after": "if False:",
+      "target": "tests/python/test_dg_traces.py::test_rejects_multiple_changed_decode_dimensions",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_traces.py::test_rejects_multiple_changed_decode_dimensions"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_rejects_multiple_changed_decode_dimensions ________________\ntests/python/test_dg_traces.py:172: in test_rejects_multiple_changed_decode_dimensions\n    with pytest.raises(ValueError, match=\"multiple dimensions differ\"):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   AssertionError: Regex pattern did not match.\nE     Expected regex: 'multiple dimensions differ'\nE     Actual message: 'aligned shapes differ: (1, 1, 3, 8), (1, 1, 2, 8)'\n1 failed in 0.25s\n"
+    },
+    {
+      "name": "slice_bounds",
+      "source": "bench/compare_dg_traces.py",
+      "before": "or start + b.shape[axis] > a.shape[axis]",
+      "after": "or False",
+      "target": "tests/python/test_dg_traces.py::test_rejects_a_prefill_slice_larger_than_the_unified_tensor",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_traces.py::test_rejects_a_prefill_slice_larger_than_the_unified_tensor"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_________ test_rejects_a_prefill_slice_larger_than_the_unified_tensor __________\ntests/python/test_dg_traces.py:177: in test_rejects_a_prefill_slice_larger_than_the_unified_tensor\n    with pytest.raises(ValueError, match=\"cannot align prefill\"):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   AssertionError: Regex pattern did not match.\nE     Expected regex: 'cannot align prefill'\nE     Actual message: 'aligned shapes differ: (1, 1, 2, 8), (1, 1, 3, 8)'\n1 failed in 0.31s\n"
+    },
+    {
+      "name": "metric_orientation",
+      "source": "bench/compare_dg_traces.py",
+      "before": "parity.dg_metrics(bb.astype(np.float64), aa.astype(np.float64), 0)",
+      "after": "parity.dg_metrics(aa.astype(np.float64), bb.astype(np.float64), 0)",
+      "target": "tests/python/test_dg_traces.py::test_compare_uses_only_canvas_rows_for_result_tensors",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_traces.py::test_compare_uses_only_canvas_rows_for_result_tensors"
+      ],
+      "exit_status": 1,
+      "output": "FF                                                                       [100%]\n=================================== FAILURES ===================================\n______ test_compare_uses_only_canvas_rows_for_result_tensors[result_norm] ______\ntests/python/test_dg_traces.py:147: in test_compare_uses_only_canvas_rows_for_result_tensors\n    assert result[\"max_rel_rms\"] == pytest.approx(1)\nE   assert 0.5 == 1 \u00b1 1.0e-06\nE     \nE     comparison failed\nE     Obtained: 0.5\nE     Expected: 1 \u00b1 1.0e-06\n_____ test_compare_uses_only_canvas_rows_for_result_tensors[result_output] _____\ntests/python/test_dg_traces.py:147: in test_compare_uses_only_canvas_rows_for_result_tensors\n    assert result[\"max_rel_rms\"] == pytest.approx(1)\nE   assert 0.5 == 1 \u00b1 1.0e-06\nE     \nE     comparison failed\nE     Obtained: 0.5\nE     Expected: 1 \u00b1 1.0e-06\n2 failed in 0.39s\n"
+    },
+    {
+      "name": "softmax_rms",
+      "source": "bench/check_dg_softmax.py",
+      "before": "rms_from_f64=float(np.sqrt(np.mean((output.astype(np.float64) - oracle) ** 2)))",
+      "after": "rms_from_f64=0.0",
+      "target": "tests/python/test_dg_diagnostics.py::test_softmax_reports_f64_error_and_replay_mismatch",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_softmax_reports_f64_error_and_replay_mismatch"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______________ test_softmax_reports_f64_error_and_replay_mismatch ______________\ntests/python/test_dg_diagnostics.py:178: in test_softmax_reports_f64_error_and_replay_mismatch\n    assert all(r[\"rms_from_f64\"] == pytest.approx(rms) for r in results)\nE   assert False\nE    +  where False = all(<generator object test_softmax_reports_f64_error_and_replay_mismatch.<locals>.<genexpr> at 0x7c501328a880>)\n----------------------------- Captured stdout call -----------------------------\n{\"key_length\": 8, \"max_abs_from_short\": 0.0, \"max_abs_from_f64\": 2.374149310480078e-08, \"rms_from_f64\": 0.0, \"replay_bit_equal\": false}\n{\"key_length\": 16, \"max_abs_from_short\": 0.0, \"max_abs_from_f64\": 2.374149310480078e-08, \"rms_from_f64\": 0.0}\n{\"key_length\": 24, \"max_abs_from_short\": 0.0, \"max_abs_from_f64\": 2.374149310480078e-08, \"rms_from_f64\": 0.0, \"replay_bit_equal\": true}\n{\"key_length\": 32, \"max_abs_from_short\": 0.0, \"max_abs_from_f64\": 2.374149310480078e-08, \"rms_from_f64\": 0.0}\n1 failed in 0.28s\n"
+    },
+    {
+      "name": "softmax_threads",
+      "source": "bench/check_dg_softmax.py",
+      "before": "api.ggml_backend_cpu_set_n_threads(backend, 1)",
+      "after": "api.ggml_backend_cpu_set_n_threads(backend, 2)",
+      "target": "tests/python/test_dg_diagnostics.py::test_softmax_uploads_causal_mask_and_masked_padding",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_softmax_uploads_causal_mask_and_masked_padding"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_____________ test_softmax_uploads_causal_mask_and_masked_padding ______________\ntests/python/test_dg_diagnostics.py:344: in test_softmax_uploads_causal_mask_and_masked_padding\n    assert calls == {\"softmax\": [(1, 10, 11, 1, 0)], \"threads\": [(3, 1)]}\nE   AssertionError: assert {'softmax': [...ds': [(3, 2)]} == {'softmax': [...ds': [(3, 1)]}\nE     \nE     Omitting 1 identical items, use -vv to show\nE     Differing items:\nE     {'threads': [(3, 2)]} != {'threads': [(3, 1)]}\nE     Use -v to get more diff\n1 failed in 0.27s\n"
+    },
+    {
+      "name": "softmax_scale",
+      "source": "bench/check_dg_softmax.py",
+      "before": "api.ggml_soft_max_ext(context, source, masking, 1, 0)",
+      "after": "api.ggml_soft_max_ext(context, source, masking, 0.5, 0)",
+      "target": "tests/python/test_dg_diagnostics.py::test_softmax_uploads_causal_mask_and_masked_padding",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_softmax_uploads_causal_mask_and_masked_padding"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_____________ test_softmax_uploads_causal_mask_and_masked_padding ______________\ntests/python/test_dg_diagnostics.py:344: in test_softmax_uploads_causal_mask_and_masked_padding\n    assert calls == {\"softmax\": [(1, 10, 11, 1, 0)], \"threads\": [(3, 1)]}\nE   AssertionError: assert {'softmax': [...ds': [(3, 1)]} == {'softmax': [...ds': [(3, 1)]}\nE     \nE     Omitting 1 identical items, use -vv to show\nE     Differing items:\nE     {'softmax': [(1, 10, 11, 0.5, 0)]} != {'softmax': [(1, 10, 11, 1, 0)]}\nE     Use -v to get more diff\n1 failed in 0.28s\n"
+    },
+    {
+      "name": "softmax_max_bias",
+      "source": "bench/check_dg_softmax.py",
+      "before": "api.ggml_soft_max_ext(context, source, masking, 1, 0)",
+      "after": "api.ggml_soft_max_ext(context, source, masking, 1, 1)",
+      "target": "tests/python/test_dg_diagnostics.py::test_softmax_uploads_causal_mask_and_masked_padding",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_softmax_uploads_causal_mask_and_masked_padding"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_____________ test_softmax_uploads_causal_mask_and_masked_padding ______________\ntests/python/test_dg_diagnostics.py:344: in test_softmax_uploads_causal_mask_and_masked_padding\n    assert calls == {\"softmax\": [(1, 10, 11, 1, 0)], \"threads\": [(3, 1)]}\nE   AssertionError: assert {'softmax': [...ds': [(3, 1)]} == {'softmax': [...ds': [(3, 1)]}\nE     \nE     Omitting 1 identical items, use -vv to show\nE     Differing items:\nE     {'softmax': [(1, 10, 11, 1, 1)]} != {'softmax': [(1, 10, 11, 1, 0)]}\nE     Use -v to get more diff\n1 failed in 0.26s\n"
+    },
+    {
+      "name": "softmax_replay_tolerance",
+      "source": "bench/check_dg_softmax.py",
+      "before": "np.array_equal(output.view(np.uint32), actual[keys].copy().view(np.uint32))",
+      "after": "np.allclose(output, actual[keys])",
+      "target": "tests/python/test_dg_diagnostics.py::test_softmax_reports_f64_error_and_replay_mismatch",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_softmax_reports_f64_error_and_replay_mismatch"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______________ test_softmax_reports_f64_error_and_replay_mismatch ______________\ntests/python/test_dg_diagnostics.py:179: in test_softmax_reports_f64_error_and_replay_mismatch\n    assert results[0][\"replay_bit_equal\"] is False\nE   assert True is False\n----------------------------- Captured stdout call -----------------------------\n{\"key_length\": 8, \"max_abs_from_short\": 0.0, \"max_abs_from_f64\": 2.374149310480078e-08, \"rms_from_f64\": 5.107083948613685e-09, \"replay_bit_equal\": true}\n{\"key_length\": 16, \"max_abs_from_short\": 0.0, \"max_abs_from_f64\": 2.374149310480078e-08, \"rms_from_f64\": 5.107083948613685e-09}\n{\"key_length\": 24, \"max_abs_from_short\": 0.0, \"max_abs_from_f64\": 2.374149310480078e-08, \"rms_from_f64\": 5.107083948613685e-09, \"replay_bit_equal\": true}\n{\"key_length\": 32, \"max_abs_from_short\": 0.0, \"max_abs_from_f64\": 2.374149310480078e-08, \"rms_from_f64\": 5.107083948613685e-09}\n1 failed in 0.27s\n"
+    },
+    {
+      "name": "projection_rms",
+      "source": "bench/check_dg_projection.py",
+      "before": "rms_diff=float(np.sqrt(np.mean(error ** 2)))",
+      "after": "rms_diff=0.0",
+      "target": "tests/python/test_dg_diagnostics.py::test_projection_reports_quantized_oracle_and_boundary_differences",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_projection_reports_quantized_oracle_and_boundary_differences"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______ test_projection_reports_quantized_oracle_and_boundary_differences _______\ntests/python/test_dg_diagnostics.py:94: in test_projection_reports_quantized_oracle_and_boundary_differences\n    assert comparisons[\"cached\", \"q8_k_inputs\"][\"rms_diff\"] == pytest.approx(0.25 / math.sqrt(5 * hidden))\nE   assert 0.0 == 0.006987712429686843 \u00b1 7.0e-09\nE     \nE     comparison failed\nE     Obtained: 0.0\nE     Expected: 0.006987712429686843 \u00b1 7.0e-09\n----------------------------- Captured stdout call -----------------------------\n{\"weight\": \"blk.0.attn_q.weight\", \"weight_type\": \"Q4_K\", \"selected_rows\": [0, 8, 9, 10, 24], \"differing_rows\": [8], \"comparisons\": [{\"path\": \"unified\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907263435924, \"masked_median_cosine\": 0.9999907263435924, \"max_rel_rms\": 0.005816465257198313, \"median_rel_rms\": 0.005812926478229742, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 1, 2], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"unified\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.0, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999999999999998, \"median_cosine\": 1.0, \"masked_median_cosine\": 1.0, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 1], \"top1_max_rel_err\": 0.0}, {\"path\": \"cached\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907267548377, \"masked_median_cosine\": 0.9999907267548377, \"max_rel_rms\": 0.005816465257198313, \"median_rel_rms\": 0.005812176658163829, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 3], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"cached\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.25, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999996904879094, \"median_cosine\": 0.9999999999999998, \"masked_median_cosine\": 0.9999999999999998, \"max_rel_rms\": 0.0008798781488332646, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [1, 0, 2], \"top1_max_rel_err\": 0.0}]}\n{\"weight\": \"blk.0.attn_k.weight\", \"weight_type\": \"Q4_K\", \"selected_rows\": [0, 8, 9, 10, 24], \"differing_rows\": [8], \"comparisons\": [{\"path\": \"unified\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907263435924, \"masked_median_cosine\": 0.9999907263435924, \"max_rel_rms\": 0.005816465257198313, \"median_rel_rms\": 0.005812926478229742, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 1, 2], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"unified\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.0, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999999999999998, \"median_cosine\": 1.0, \"masked_median_cosine\": 1.0, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 1], \"top1_max_rel_err\": 0.0}, {\"path\": \"cached\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907267548377, \"masked_median_cosine\": 0.9999907267548377, \"max_rel_rms\": 0.005816465257198313, \"median_rel_rms\": 0.005812176658163829, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 3], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"cached\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.25, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999996904879094, \"median_cosine\": 0.9999999999999998, \"masked_median_cosine\": 0.9999999999999998, \"max_rel_rms\": 0.0008798781488332646, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [1, 0, 2], \"top1_max_rel_err\": 0.0}]}\n{\"weight\": \"blk.0.attn_v.weight\", \"weight_type\": \"Q4_K\", \"selected_rows\": [0, 8, 9, 10, 24], \"differing_rows\": [8], \"comparisons\": [{\"path\": \"unified\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907263435924, \"masked_median_cosine\": 0.9999907263435924, \"max_rel_rms\": 0.005816465257198313, \"median_rel_rms\": 0.005812926478229742, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 1, 2], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"unified\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.0, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999999999999998, \"median_cosine\": 1.0, \"masked_median_cosine\": 1.0, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 1], \"top1_max_rel_err\": 0.0}, {\"path\": \"cached\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907267548377, \"masked_median_cosine\": 0.9999907267548377, \"max_rel_rms\": 0.005816465257198313, \"median_rel_rms\": 0.005812176658163829, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 3], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"cached\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.25, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999996904879094, \"median_cosine\": 0.9999999999999998, \"masked_median_cosine\": 0.9999999999999998, \"max_rel_rms\": 0.0008798781488332646, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [1, 0, 2], \"top1_max_rel_err\": 0.0}]}\n1 failed in 0.33s\n"
+    },
+    {
+      "name": "projection_relative_rms",
+      "source": "bench/check_dg_projection.py",
+      "before": "**parity.dg_metrics(candidate.astype(np.float64), oracle, 0)",
+      "after": "**dict(parity.dg_metrics(candidate.astype(np.float64), oracle, 0), max_rel_rms=0.0)",
+      "target": "tests/python/test_dg_diagnostics.py::test_projection_reports_quantized_oracle_and_boundary_differences",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_projection_reports_quantized_oracle_and_boundary_differences"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______ test_projection_reports_quantized_oracle_and_boundary_differences _______\ntests/python/test_dg_diagnostics.py:95: in test_projection_reports_quantized_oracle_and_boundary_differences\n    assert comparisons[\"cached\", \"q8_k_inputs\"][\"max_rel_rms\"] == pytest.approx(\nE   assert 0.0 == 0.00087987814...2646 \u00b1 8.8e-10\nE     \nE     comparison failed\nE     Obtained: 0.0\nE     Expected: 0.0008798781488332646 \u00b1 8.8e-10\n----------------------------- Captured stdout call -----------------------------\n{\"weight\": \"blk.0.attn_q.weight\", \"weight_type\": \"Q4_K\", \"selected_rows\": [0, 8, 9, 10, 24], \"differing_rows\": [8], \"comparisons\": [{\"path\": \"unified\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.10364452469860624, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907263435924, \"masked_median_cosine\": 0.9999907263435924, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.005812926478229742, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 1, 2], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"unified\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.0, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999999999999998, \"median_cosine\": 1.0, \"masked_median_cosine\": 1.0, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 1], \"top1_max_rel_err\": 0.0}, {\"path\": \"cached\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.10102018672027883, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907267548377, \"masked_median_cosine\": 0.9999907267548377, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.005812176658163829, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 3], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"cached\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.25, \"rms_diff\": 0.006987712429686843, \"rows\": 5, \"min_cosine\": 0.9999996904879094, \"median_cosine\": 0.9999999999999998, \"masked_median_cosine\": 0.9999999999999998, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [1, 0, 2], \"top1_max_rel_err\": 0.0}]}\n{\"weight\": \"blk.0.attn_k.weight\", \"weight_type\": \"Q4_K\", \"selected_rows\": [0, 8, 9, 10, 24], \"differing_rows\": [8], \"comparisons\": [{\"path\": \"unified\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.10364452469860624, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907263435924, \"masked_median_cosine\": 0.9999907263435924, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.005812926478229742, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 1, 2], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"unified\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.0, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999999999999998, \"median_cosine\": 1.0, \"masked_median_cosine\": 1.0, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 1], \"top1_max_rel_err\": 0.0}, {\"path\": \"cached\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.10102018672027883, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907267548377, \"masked_median_cosine\": 0.9999907267548377, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.005812176658163829, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 3], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"cached\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.25, \"rms_diff\": 0.006987712429686843, \"rows\": 5, \"min_cosine\": 0.9999996904879094, \"median_cosine\": 0.9999999999999998, \"masked_median_cosine\": 0.9999999999999998, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [1, 0, 2], \"top1_max_rel_err\": 0.0}]}\n{\"weight\": \"blk.0.attn_v.weight\", \"weight_type\": \"Q4_K\", \"selected_rows\": [0, 8, 9, 10, 24], \"differing_rows\": [8], \"comparisons\": [{\"path\": \"unified\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.10364452469860624, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907263435924, \"masked_median_cosine\": 0.9999907263435924, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.005812926478229742, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 1, 2], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"unified\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.0, \"rms_diff\": 0.0, \"rows\": 5, \"min_cosine\": 0.9999999999999998, \"median_cosine\": 1.0, \"masked_median_cosine\": 1.0, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 1], \"top1_max_rel_err\": 0.0}, {\"path\": \"cached\", \"reference\": \"plain_f32_inputs\", \"max_abs_diff\": 1.5, \"rms_diff\": 0.10102018672027883, \"rows\": 5, \"min_cosine\": 0.9999907244159201, \"median_cosine\": 0.9999907267548377, \"masked_median_cosine\": 0.9999907267548377, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.005812176658163829, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [0, 2, 3], \"top1_max_rel_err\": 0.0019646365422396855}, {\"path\": \"cached\", \"reference\": \"q8_k_inputs\", \"max_abs_diff\": 0.25, \"rms_diff\": 0.006987712429686843, \"rows\": 5, \"min_cosine\": 0.9999996904879094, \"median_cosine\": 0.9999999999999998, \"masked_median_cosine\": 0.9999999999999998, \"max_rel_rms\": 0.0, \"median_rel_rms\": 0.0, \"argmax_agree\": 5, \"mean_top5_overlap\": 5.0, \"worst_rows\": [1, 0, 2], \"top1_max_rel_err\": 0.0}]}\n1 failed in 0.36s\n"
+    },
+    {
+      "name": "matmul_threads",
+      "source": "bench/check_dg_matmul.py",
+      "before": "str(input_path), str(len(inputs)), str(output_path), \"1\"]",
+      "after": "str(input_path), str(len(inputs)), str(output_path), \"2\"]",
+      "target": "tests/python/test_dg_diagnostics.py::test_matmul_reports_replay_mismatch_and_honors_no_repack",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_matmul_reports_replay_mismatch_and_honors_no_repack"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n___________ test_matmul_reports_replay_mismatch_and_honors_no_repack ___________\ntests/python/test_dg_diagnostics.py:127: in test_matmul_reports_replay_mismatch_and_honors_no_repack\n    assert matmul.main() == 0\n           ^^^^^^^^^^^^^\nbench/check_dg_matmul.py:56: in main\n    replay, backend = product(x, \"original-replay\", False)\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nbench/check_dg_matmul.py:52: in product\n    done = subprocess.run(command, check=True, capture_output=True, text=True)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/python/test_dg_diagnostics.py:113: in run_product\n    assert command[8] == \"1\"\nE   AssertionError: assert '2' == '1'\nE     \nE     - 1\nE     + 2\n1 failed in 0.29s\n"
+    },
+    {
+      "name": "tiny_threads",
+      "source": "bench/check_dg_tiny_paths.py",
+      "before": "str(output), \"1\"]",
+      "after": "str(output), \"2\"]",
+      "target": "tests/python/test_dg_diagnostics.py::test_tiny_paths_executes_both_paths_and_reports_one_ulp_difference",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_tiny_paths_executes_both_paths_and_reports_one_ulp_difference"
+      ],
+      "exit_status": 1,
+      "output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______ test_tiny_paths_executes_both_paths_and_reports_one_ulp_difference ______\ntests/python/test_dg_diagnostics.py:260: in test_tiny_paths_executes_both_paths_and_reports_one_ulp_difference\n    assert tiny_paths.main() == 0\n           ^^^^^^^^^^^^^^^^^\nbench/check_dg_tiny_paths.py:76: in main\n    subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, check=True)\ntests/python/test_dg_diagnostics.py:248: in run_reference\n    assert command[6] == \"1\"\nE   AssertionError: assert '2' == '1'\nE     \nE     - 1\nE     + 2\n1 failed in 0.29s\n"
+    },
+    {
+      "name": "matmul_existing_directory",
+      "source": "bench/check_dg_matmul.py",
+      "before": "args.out_dir.mkdir()",
+      "after": "args.out_dir.mkdir(exist_ok=True)",
+      "target": "tests/python/test_dg_diagnostics.py::test_existing_output_directory_preserves_its_contents",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_existing_output_directory_preserves_its_contents"
+      ],
+      "exit_status": 1,
+      "output": "F.                                                                       [100%]\n=================================== FAILURES ===================================\n____ test_existing_output_directory_preserves_its_contents[check_dg_matmul] ____\ntests/python/test_dg_diagnostics.py:291: in test_existing_output_directory_preserves_its_contents\n    checker.main()\nbench/check_dg_matmul.py:35: in main\n    tensors = compare_dg_traces.load(args.unified)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nbench/compare_dg_traces.py:25: in load\n    for line in (folder / \"manifest.jsonl\").read_text().splitlines():\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/root/.local/share/uv/python/cpython-3.13.18-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py:546: in read_text\n    return PathBase.read_text(self, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/root/.local/share/uv/python/cpython-3.13.18-linux-x86_64-gnu/lib/python3.13/pathlib/_abc.py:632: in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/root/.local/share/uv/python/cpython-3.13.18-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py:537: in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   FileNotFoundError: [Errno 2] No such file or directory: 'trace/manifest.jsonl'\n1 failed, 1 passed in 0.32s\n"
+    },
+    {
+      "name": "tiny_existing_directory",
+      "source": "bench/check_dg_tiny_paths.py",
+      "before": "args.out_dir.mkdir()",
+      "after": "args.out_dir.mkdir(exist_ok=True)",
+      "target": "tests/python/test_dg_diagnostics.py::test_existing_output_directory_preserves_its_contents",
+      "caught": true,
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "--tb=short",
+        "tests/python/test_dg_diagnostics.py::test_existing_output_directory_preserves_its_contents"
+      ],
+      "exit_status": 1,
+      "output": ".F                                                                       [100%]\n=================================== FAILURES ===================================\n__ test_existing_output_directory_preserves_its_contents[check_dg_tiny_paths] __\ntests/python/test_dg_diagnostics.py:291: in test_existing_output_directory_preserves_its_contents\n    checker.main()\nbench/check_dg_tiny_paths.py:40: in main\n    writer = GGUFWriter(str(model_path), \"diffusion-gemma\")\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   TypeError: object() takes no arguments\n1 failed, 1 passed in 0.34s\n"
+    }
+  ],
+  "caught": 18,
+  "total": 18
+}
