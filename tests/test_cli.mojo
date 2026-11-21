@@ -489,6 +489,28 @@ def test_usage_errors_exit_two() raises:
     )
 
 
+def test_execute_takes_a_from_env_list() raises:
+    # Proves the second argument exists and that the old one-argument calls
+    # above still compile (the default is an empty list). A bad `--steps`
+    # from the environment is still a usage error, exit 2.
+    assert_equal(
+        execute(
+            [
+                "mojo-dllm",
+                "run",
+                "--steps",
+                "abc",
+                "--model",
+                "m",
+                "--prompt",
+                "p",
+            ],
+            ["steps"],
+        ),
+        2,
+    )
+
+
 def test_decisions_derive_the_exit_code_from_their_kind() raises:
     var help = Decision.help("usage text")
     assert_equal(help.code(), 0)

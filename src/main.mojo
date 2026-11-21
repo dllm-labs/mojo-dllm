@@ -15,13 +15,22 @@
 """
 
 from std.ffi import ErrNo, external_call, c_int, get_errno
+from std.collections import Dict
 from std.math import isfinite
 from std.os import getenv, remove
 from std.os.path import exists, getsize, isdir, isfile
 from std.sys import argv, exit, get_defined_string, num_logical_cores, stderr
 from std.time import perf_counter_ns
 
-from cli.args import Args, parse_csv_ints, unknown_flag_error
+from cli.args import (
+    Args,
+    env_flags,
+    env_name,
+    env_problem,
+    parse_csv_ints,
+    unknown_flag_error,
+    with_env,
+)
 from cli.visual import CanvasPrinter, prints_answer
 from mojo_dllm.formats.gguf import GGUFFile, GGUF_TYPE_ARRAY
 from mojo_dllm.formats.utf8 import utf8_first_invalid
@@ -1509,12 +1518,18 @@ def decide(raw: List[String]) raises -> Decision:
     return Decision.run()
 
 
-def execute(raw: List[String]) -> Int:
-    """Runs the command line and returns the exit status: 0, 1 or 2."""
+def execute(raw: List[String], from_env: List[String] = List[String]()) -> Int:
+    """Runs the command line and returns the exit status: 0, 1 or 2.
+
+    `from_env` names the flags whose values the environment supplied (empty
+    by default, so every existing caller and test is unchanged). Two things
+    use it: a numeric-flag problem names the variable behind the bad value,
+    and `run --verbose` reports each environment-supplied flag on stderr.
+    """
     try:
         var d = decide(raw)
         if d.is_error():
-            print("ERROR:", d.text, file=stderr)
+            print("ERROR:", env_problem(d.text, from_env), file=stderr)
             return d.code()
         if not d.proceeds():
             print(d.text)
@@ -1523,6 +1538,18 @@ def execute(raw: List[String]) -> Int:
         var spec = command_spec(command)
         var a = Args(raw, spec.values, spec.booleans)
         if command == "run":
+            if a.has("verbose") and len(from_env) > 0:
+                for name in from_env:
+                    print(
+                        "from environment: --"
+                        + name
+                        + " "
+                        + getenv(env_name(name))
+                        + " ("
+                        + env_name(name)
+                        + ")",
+                        file=stderr,
+                    )
             cmd_run(a)
         elif command == "tokenize":
             cmd_tokenize(a)
@@ -1536,10 +1563,25 @@ def execute(raw: List[String]) -> Int:
         return 1
 
 
-def main():
+def _run_env(raw: List[String]) raises -> Tuple[List[String], List[String]]:
+    """The `run` argv with `MOJO_DLLM_*` variables filled in, and their names.
+    """
+    var spec = command_spec("run")
+    var env = Dict[String, String]()
+    for f in env_flags():
+        env[env_name(f)] = getenv(env_name(f))
+    return with_env(raw, spec.values, spec.booleans, env)
+
+
+def main() raises:
     var raw = List[String]()
     for s in argv():
         raw.append(String(s))
-    var code = execute(raw)
+    var from_env = List[String]()
+    if len(raw) > 1 and raw[1] == "run":
+        var merged = _run_env(raw)
+        raw = merged[0].copy()
+        from_env = merged[1].copy()
+    var code = execute(raw, from_env)
     if code != 0:
         exit(code)
