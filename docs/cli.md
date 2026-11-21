@@ -1,8 +1,8 @@
 # Command line
 
 ```text
-mojo-dllm run      --model PATH --prompt TEXT [options]
-mojo-dllm tokenize --model PATH --prompt TEXT [--no-chat]
+mojo-dllm run      --model PATH (--prompt TEXT | --prompt-file PATH) [options]
+mojo-dllm tokenize --model PATH (--prompt TEXT | --prompt-file PATH) [--no-chat]
 mojo-dllm inspect  PATH
 mojo-dllm logits   --model PATH --tokens IDS --rows POSITIONS --out FILE [--threads N] [--device D]
                    [--path unified|cached] [--prev FILE --prev-temp-inv X]
@@ -41,7 +41,8 @@ Git metadata. A binary keeps reporting the commit it was built from after
 | Flag | Default | Meaning |
 |---|---|---|
 | `--model PATH` | required | LLaDA or Dream GGUF file |
-| `--prompt TEXT` | required | the user message |
+| `--prompt TEXT` | required unless you pass `--prompt-file` | the user message |
+| `--prompt-file PATH` | none | read the user message from a file instead of `--prompt`; `-` reads standard input; the binary removes one trailing newline; cannot combine with `--prompt` |
 | `--max-tokens N` | 128 | tokens to generate (the masked canvas). The prompt tokens plus N must not exceed the file's `<arch>.context_length` (4096 when the key is absent); the check runs after the header is read and before any weight is mapped |
 | `--steps N` | `--max-tokens` | denoising steps; a multiple of the block count |
 | `--block-length N` | 32, or `--max-tokens` when that is smaller | LLaDA's semi-autoregressive block size; must divide `--max-tokens`. A Dream run refuses it |
@@ -142,6 +143,8 @@ architecture the command stops with `no chat template for architecture 'qwen2' (
 and diffusion-gemma have one); pass --no-chat to tokenize the text as it is`, and `--no-chat`
 tokenizes the text unchanged. `run` applies the same rule to its prompt.
 
+The prompt comes from `--prompt` or `--prompt-file`, as in `run`.
+
 ## `inspect`
 
 Prints GGUF metadata, a count per tensor type, and every tensor's type and
@@ -206,6 +209,8 @@ stderr, so stdout stays free for the answer or the JSON object; help text and
 | Message | Cause and next step |
 |---|---|
 | `ERROR: unknown flag --stpes for 'run' (did you mean --steps?)` | The command does not declare the flag. The parenthesis appears when a declared flag is at most 2 edits away. The next line is `see: mojo-dllm run --help` |
+| `ERROR: --prompt and --prompt-file cannot be combined for 'run'` | Give the prompt one way. The next line is `see: mojo-dllm run --help`. Exit status 2 |
+| `ERROR: cannot read prompt file PATH: REASON` | The file is missing or unreadable. The check runs before the model is mapped. Exit status 1 |
 | `ERROR: missing required flag --model for 'run'` | A required flag is absent. The usage of the command follows |
 | `ERROR: missing model path for 'inspect'` | `inspect` takes the path as an argument. The usage follows |
 | `ERROR: unknown command: bogus` | The first argument is not a command. The next line is `see: mojo-dllm --help` |
