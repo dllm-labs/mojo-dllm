@@ -302,3 +302,40 @@ def test_a_hash_inside_a_quoted_value_on_the_same_line_is_not_the_comment(rig: R
     p = extract(rig)
     assert p.returncode == 0, p.stderr
     assert p.stdout.split("\t")[2] == "v4"
+
+
+# The TruffleHog `version` input (#146) ------------------------------------------------------------------------
+
+def trufflehog(rig: Rig, claim: str, version: str) -> None:
+    rig.workflow(f"""\
+        name: t
+        on: push
+        jobs:
+          j:
+            runs-on: ubuntu-24.04
+            steps:
+              - uses: trufflesecurity/trufflehog@{SHA}  # {claim}
+                with:
+                  version: "{version}"
+        """)
+
+
+def test_a_trufflehog_version_equal_to_its_pin_comment_passes(rig: Rig) -> None:
+    trufflehog(rig, "v3.99.8", "3.99.8")
+    p = extract(rig)
+    assert p.returncode == 0, p.stderr
+    assert p.stdout.split("\t")[2] == "v3.99.8"
+
+
+@pytest.mark.parametrize("version", ["3.99.7", "v3.99.8", "latest", ""])
+def test_a_trufflehog_version_that_differs_from_its_pin_comment_is_refused(rig: Rig, version: str) -> None:
+    trufflehog(rig, "v3.99.8", version)
+    p = extract(rig)
+    assert p.returncode != 0 and "trufflesecurity/trufflehog" in p.stderr and "3.99.8" in p.stderr, p.stderr
+
+
+def test_a_trufflehog_version_mismatch_fails_the_gate(rig: Rig) -> None:
+    trufflehog(rig, "v3.99.8", "3.99.7")
+    rig.table["refs"]["trufflesecurity/trufflehog@v3.99.8"] = ["commit", SHA]
+    p = rig.run()
+    assert p.returncode == 1 and "checked" not in p.stdout and rig.gh_calls() == []

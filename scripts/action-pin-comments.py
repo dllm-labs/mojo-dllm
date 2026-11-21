@@ -45,6 +45,30 @@ def references(document):
                     yield from entries(step, "uses")
 
 
+# Actions whose `version` input is the release of the action itself. TruffleHog's
+# is the scanner image tag, and a Dependabot bump moves the pin without it (#146).
+VERSION_INPUTS = {"trufflesecurity/trufflehog"}
+
+
+def version_inputs(document):
+    """Yield (uses node, version node) for each workflow step with a `version` input."""
+    for jobs in entries(document, "jobs"):
+        for _, job in jobs.value:
+            for steps in entries(job, "steps"):
+                for step in steps.value:
+                    for uses in entries(step, "uses"):
+                        for inputs in entries(step, "with"):
+                            for version in entries(inputs, "version"):
+                                yield uses, version
+
+
+def check_version(action, claim, version):
+    expected = claim.removeprefix("v")
+    if not isinstance(version, ScalarNode) or version.value != expected:
+        found = version.value if isinstance(version, ScalarNode) else "a non-scalar"
+        raise ValueError(f"{action} passes version {found!r}, but its pin comment {claim} needs {expected!r}")
+
+
 def extract(root):
     files = discover(root / ".github/workflows", root / ".github/actions")
     rows = []
@@ -60,7 +84,9 @@ def extract(root):
                     continue  # Synthetic block/stream ends can follow comments.
                 mark = token.end_mark
                 ends[mark.line] = max(ends.get(mark.line, 0), mark.column)
-            for node in references(yaml.compose(source, Loader=yaml.SafeLoader)):
+            document = yaml.compose(source, Loader=yaml.SafeLoader)
+            claims = {}
+            for node in references(document):
                 if not isinstance(node, ScalarNode):
                     raise ValueError("uses must be a scalar")
                 # Local and Docker references have no GitHub tag comment to check.
@@ -80,6 +106,11 @@ def extract(root):
                     raise ValueError(f"missing version comment or ambiguous comment for {action}")
                 location = f"{path.relative_to(root).as_posix()}:{node.start_mark.line + 1}"
                 rows.append("\t".join((action, sha.lower(), comment[1], location)))
+                if action in VERSION_INPUTS:
+                    claims[id(node)] = (action, comment[1])
+            for uses, version in version_inputs(document):
+                if id(uses) in claims:
+                    check_version(*claims[id(uses)], version)
         except (OSError, UnicodeError, yaml.YAMLError, ValueError, IndexError) as error:
             raise ValueError(f"cannot read workflow {path}: {error}") from error
     if not rows:

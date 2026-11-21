@@ -34,6 +34,10 @@ semantic versioning (0.y: minor bumps may break things).
 
 ### Fixed
 
+- The action-pin check fails when the TruffleHog `version` input in `secret-scan.yml` is not the release its pin comment
+  names without the `v` (issue #146): a Dependabot bump moves the pin and leaves the scanner image tag behind. The
+  workflow comments now say what runs: a push to main and the weekly run pass no base, so each scans the full history
+  that leads to the commit, not the working tree.
 - `--remasking origin` was refused before the model loaded: the accepted names listed five values and left out `origin`.
   `docs/cli.md` now says Dream takes all six names and LLaDA refuses `entropy`, `maskgit_plus`, `topk_margin` and `origin`.
 
