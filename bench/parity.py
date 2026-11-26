@@ -151,7 +151,6 @@ DG_PREV_FILE = "unified.ref.f32"
 # The first denoising step runs at temperature 0.8 (issue #60), so the second step's self-conditioning
 # divides the previous logits by it.
 DG_PREV_TEMP_INV = 1.0 / spec.DG_FIRST_STEP_TEMP
-LLADA_EVIDENCE = "bench/parity/2026-10-03-llada.json"
 # A changed-input sensitivity diagnostic. Its spread is recorded beside parity;
 # only same-input cache-path controls determine the implementation tolerance.
 DG_NOISE_REL = 1e-6
@@ -198,31 +197,6 @@ def dg_require_commit(src: pathlib.Path, pinned: str) -> str:
     if head != pinned:
         raise SystemExit(f"refusing: {src} is at {head}, the pinned llama.cpp commit is {pinned}")
     return head
-
-
-def llada_bound(root: pathlib.Path) -> Bound:
-    """No worse than the worst case of the committed LLaDA comparison, on each metric.
-
-    The numbers come from LLADA_EVIDENCE, never typed here: if that file is replaced the bound moves
-    with it, and if it is missing there is no bound, so nothing passes.
-    """
-    path = root / LLADA_EVIDENCE
-    if not path.is_file():
-        raise SystemExit(f"refusing: {LLADA_EVIDENCE} is missing, so there is no bound to hold to")
-    entries = json.loads(path.read_text())["logits"]
-    if not entries:
-        raise SystemExit(f"refusing: {LLADA_EVIDENCE} holds no logit comparisons")
-    return dict(
-        min_cosine=min(e["min_cosine"] for e in entries),
-        argmax_fraction=min(e["argmax_agree"] / e["rows"] for e in entries),
-        mean_top5_overlap=min(e["mean_top5_overlap"] for e in entries),
-        max_rel_rms=max(e["max_rel_rms"] for e in entries),
-        # The soft-cap at 30 pins a row's largest logit near 30 for any correct runtime, so whole-row metrics
-        # cannot see it removed (cosine 0.997, same argmax and top-5). The largest logit gets the relative
-        # error LLaDA's rows reach.
-        max_top1_rel_err=max(e["max_rel_rms"] for e in entries),
-        source=LLADA_EVIDENCE,
-    )
 
 
 def dg_violations(m: DgMetrics, bound: Bound) -> list[str]:
@@ -500,11 +474,9 @@ def dg_compare(
     cases = dg_case_files(workdir, tuple(bound["cases"])) if fixed_input else dg_case_files(workdir)
     commits: set[str] = set()
     plan = []
-    seen_prompts = set()
     for case_json in cases:
         d = case_json.parent
         meta = json.loads(case_json.read_text(encoding="utf-8"))
-        seen_prompts.add(meta["prompt"])
         if fixed_input:
             dg_check_reference_spread(case_json, meta, bound)
         for v in DG_VARIANTS:
@@ -522,6 +494,9 @@ def dg_compare(
                 receipt = dg_validate_receipt(d, meta, v)
                 commits.add(receipt["execution"]["candidate_revision"])
             else:
+                # The legacy sidecar contract has no production caller: `dgemma_main` always passes the
+                # fixed-input bound. It stays because the plain-data dg_compare tests in test_parity_dgemma.py
+                # and test_parity_compare.py build their fixtures on it.
                 commits.add(dg_check_sidecar(d.name, mojo, meta))
             if (not fixed_input or case_bound["max_rel_rms"] > 0) and mojo.read_bytes() == ref.read_bytes():
                 raise SystemExit(
@@ -531,8 +506,6 @@ def dg_compare(
             if "ref_spread" not in meta:
                 raise SystemExit(f"refusing: {case_json} has no ref_spread; run --phase ref again")
             plan.append((meta, v, ref, mojo, receipt))
-    if fixed_input and seen_prompts != set(bound["cases"]):
-        raise SystemExit("refusing: the saved cases do not cover the complete measured DiffusionGemma suite")
     if len(commits) != 1:
         raise SystemExit(
             f"refusing: the mojo-dllm outputs come from {len(commits)} different builds {sorted(commits)}; "

@@ -49,6 +49,9 @@ semantic versioning (0.y: minor bumps may break things).
   candidate receipt, and checks the model's absolute soft-cap. The calibration and
   fault controls are in `bench/checks/2026-11-05-dg-sensitivity.json`.
   `bench/check_dg_bound.py make-mutant --record` saves the changed tensor, sizes and hashes.
+- Review follow-ups for #175 (issue #295): `bench/parity.py` drops `llada_bound`, which had no caller outside its tests,
+  and an unreachable suite-coverage check in `dg_compare` that `dg_case_files` already enforces. A test keeps the
+  `source` copy in `2026-11-05-dg-sensitivity.json` equal to `2026-11-05-dg-reference-source.json`.
 - The mask token can no longer be sampled (issue #40, pull request #68): argmax, the softmax normalizer and Gumbel
   selection skip it, and the Gumbel draw for the skipped candidate is still consumed, so the random stream does not
   move. `--no-suppress-mask` restores the old behavior for parity experiments. On GPU, suppression turns the device

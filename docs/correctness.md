@@ -366,8 +366,8 @@ output that is byte-identical to the reference for its own variant. The receipt
 provides an audit trail for the candidate command and its inputs.
 The parity record uses the candidate revision recorded at export.
 The comparison requires `case0` through `case3`, in the measured prompt order,
-and one candidate build across all cases and variants. The historical
-LLaDA-bound checker uses `<variant>.mojo.f32.json` sidecars with a
+and one candidate build across all cases and variants. The legacy
+comparison path, kept only for tests, uses `<variant>.mojo.f32.json` sidecars with a
 `case_sha256` and `mojo_dllm_commit`; the fixed-input protocol uses the fuller
 execution receipts described above. Starting a new reference run clears old
 candidate outputs, sidecars and receipts. A result is written atomically, and
