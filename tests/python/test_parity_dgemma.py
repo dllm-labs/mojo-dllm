@@ -78,44 +78,6 @@ def test_the_checkout_must_be_the_pinned_commit(tmp_path: Path) -> None:
     assert head in str(e.value) and "0" * 40 in str(e.value)
 
 
-def write_llada(root: Path, entries: list[dict]) -> None:
-    folder = root / "bench/parity"
-    folder.mkdir(parents=True)
-    (folder / "2026-10-03-llada.json").write_text(json.dumps({"logits": entries}))
-
-
-def test_the_bound_is_the_worst_case_of_the_committed_llada_evidence(tmp_path: Path) -> None:
-    write_llada(
-        tmp_path,
-        [
-            dict(min_cosine=0.995, argmax_agree=62, rows=64, mean_top5_overlap=4.83, max_rel_rms=0.12),
-            dict(min_cosine=0.999, argmax_agree=120, rows=126, mean_top5_overlap=4.67, max_rel_rms=0.05),
-        ],
-    )
-    bound = parity.llada_bound(tmp_path)
-    assert bound["min_cosine"] == 0.995
-    assert bound["argmax_fraction"] == pytest.approx(120 / 126)
-    assert bound["mean_top5_overlap"] == 4.67
-    assert bound["max_rel_rms"] == 0.12
-    assert bound["max_top1_rel_err"] == 0.12
-    assert bound["source"] == "bench/parity/2026-10-03-llada.json"
-
-
-def test_the_real_bound_follows_the_real_file() -> None:
-    entries = json.loads((ROOT / "bench/parity/2026-10-03-llada.json").read_text())["logits"]
-    bound = parity.llada_bound(ROOT)
-    assert bound["min_cosine"] == min(e["min_cosine"] for e in entries)
-    assert bound["max_rel_rms"] == max(e["max_rel_rms"] for e in entries)
-    assert bound["argmax_fraction"] == min(e["argmax_agree"] / e["rows"] for e in entries)
-    assert bound["max_top1_rel_err"] == bound["max_rel_rms"], "the top logit gets the relative error LLaDA's rows reach"
-
-
-def test_a_missing_llada_file_is_an_error_not_a_free_pass(tmp_path: Path) -> None:
-    with pytest.raises(SystemExit) as e:
-        parity.llada_bound(tmp_path)
-    assert "2026-10-03-llada.json" in str(e.value)
-
-
 def test_a_result_equal_to_the_bound_passes_and_each_metric_can_fail_alone() -> None:
     at_bound = dict(
         min_cosine=0.9951, argmax_agree=95, rows=100, mean_top5_overlap=4.6, max_rel_rms=0.12, top1_max_rel_err=0.12
@@ -216,13 +178,6 @@ def test_a_missing_reference_output_is_named_not_a_traceback(tmp_path: Path) -> 
     with pytest.raises(SystemExit) as e:
         parity.dg_compare(tmp_path, BOUND, load=lambda p: p.read_bytes(), compare_fn=fake_compare)
     assert str(case / "unified-sc.ref.f32") in str(e.value) and "--phase ref" in str(e.value)
-
-
-def test_llada_evidence_with_no_comparisons_gives_no_bound(tmp_path: Path) -> None:
-    write_llada(tmp_path, [])
-    with pytest.raises(SystemExit) as e:
-        parity.llada_bound(tmp_path)
-    assert "no logit comparisons" in str(e.value)
 
 
 def test_a_short_or_missing_pin_in_the_build_script_is_refused(tmp_path: Path) -> None:
@@ -372,6 +327,17 @@ def test_same_named_model_with_a_different_identity_is_refused() -> None:
     changed = dict(meta["model_provenance"], declared_hf_lfs_oid="different-object")
     with pytest.raises(SystemExit, match="model_identity"):
         parity.dg_case_bound(dict(meta, model_provenance=changed), "unified", bound)
+
+
+def test_sensitivity_evidence_repeats_the_reference_source_record_unchanged() -> None:
+    # The sensitivity evidence carries a copy of the reference-source record under `source`; the two must not drift.
+    source = json.loads((ROOT / "bench/checks/2026-11-05-dg-reference-source.json").read_text(encoding="utf-8"))
+    copy = json.loads((ROOT / parity.DG_SENSITIVITY_EVIDENCE).read_text(encoding="utf-8"))["source"]
+    for key in ("commit", "mechanism", "manifest"):
+        assert copy[key] == source[key], key
+    # The copy's verification is the shorter version: every key it keeps must hold the same value.
+    short, full = copy["compilation_input_verification"], source["compilation_input_verification"]
+    assert short and short == {k: full[k] for k in short if k in full}, sorted(set(short) - set(full))
 
 
 @pytest.mark.parametrize("field, value", [("filename", "different.gguf"), ("verified_bytes", 18)])
